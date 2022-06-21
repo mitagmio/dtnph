@@ -107,8 +107,8 @@ class Invoice (models.Model):
         User, on_delete=models.CASCADE, related_name='payer_id_invoice_set')
 
     @staticmethod
-    def get_payment(min_timestamp: int) -> Dict:
-        url = "https://api.trongrid.io/v1/accounts/TYXmiSD7KoLmFyWoPauM2MpXfpS3Z1fsCq/transactions/trc20?limit=20&contract_address=TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t&only_confirmed=true&min_timestamp={}".format(
+    def get_payment(min_timestamp: int, address: str) -> Dict:
+        url = "https://api.trongrid.io/v1/accounts/"+address+"/transactions/trc20?limit=20&contract_address=TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t&only_confirmed=true&min_timestamp={}".format(
             min_timestamp)
         headers = CaseInsensitiveDict()
         headers["Content-type"] = "application/json"
