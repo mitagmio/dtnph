@@ -55,16 +55,17 @@ def make_keyboard_for_cmd_menu(adm) -> InlineKeyboardMarkup:
         buttons.append([btn_help, btn_back])
         return InlineKeyboardMarkup(buttons)
 
-def make_keyboard_for_cmd_wallet() -> InlineKeyboardMarkup:
+def make_keyboard_for_cmd_wallet(text_email: str) -> InlineKeyboardMarkup:
         buttons = []
         btn_help = InlineKeyboardButton(text='🆘 Помощь', callback_data='Help')
         btn_back = InlineKeyboardButton(text='⏪ Назад', callback_data='Старт')
         btn_top_up_usdt = InlineKeyboardButton(
             text='💸 Пополнить баланс USDT TRC20', callback_data='Пополнить_Кошелек_TRC20')
-        btn_change_email = InlineKeyboardButton(
-            text='📨 Изменить почту', callback_data='Почта')
         buttons.append([btn_top_up_usdt])
-        buttons.append([btn_change_email])
+        if text_email != '':
+            btn_change_email = InlineKeyboardButton(
+                text='📨 Изменить почту', callback_data='Почта')
+            buttons.append([btn_change_email])
         buttons.append([btn_help, btn_back])
         return InlineKeyboardMarkup(buttons)
 
