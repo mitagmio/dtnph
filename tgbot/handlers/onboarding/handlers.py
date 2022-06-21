@@ -222,8 +222,11 @@ def cmd_wallet(update: Update, context: CallbackContext):
     if check_username(update, context):
         # if check_email(update, context):
             u.state = static_state.S_MENU
+            text_email = '📨 Почта: '+u.email
+            if u.email == None or u.email == '':
+                text_email = ''
             id = context.bot.send_message(
-                message.chat.id, static_text.WALLET.format(balance=u.balance, email=u.email), reply_markup=make_keyboard_for_cmd_wallet(), parse_mode="HTML")
+                message.chat.id, static_text.WALLET.format(balance=u.balance, email=text_email), reply_markup=make_keyboard_for_cmd_wallet(), parse_mode="HTML")
             u.message_id = id.message_id
             u.save()
     del_mes(update, context, True)

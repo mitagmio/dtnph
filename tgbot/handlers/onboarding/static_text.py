@@ -43,7 +43,7 @@ ADMIN_MENU_TEXT = """📝 Администрирование:
 """
 
 WALLET = """
-📨 Почта: {email}
+{email}
 
 💵 Баланс: {balance} USDT
 
