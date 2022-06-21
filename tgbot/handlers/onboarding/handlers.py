@@ -220,7 +220,7 @@ def cmd_wallet(update: Update, context: CallbackContext):
         # Если пользователь без username мы предлагаем ему заполнить свой профиль.
     # print(bot.get_chat_member(352482305))
     if check_username(update, context):
-        if check_email(update, context):
+        # if check_email(update, context):
             u.state = static_state.S_MENU
             id = context.bot.send_message(
                 message.chat.id, static_text.WALLET.format(balance=u.balance, email=u.email), reply_markup=make_keyboard_for_cmd_wallet(), parse_mode="HTML")
@@ -234,7 +234,7 @@ def cmd_top_up_wallet_usdt(update: Update, context: CallbackContext):
     u = User.get_user(update, context)
     message = get_message_bot(update)
     if check_username(update, context):
-        if check_email(update, context):
+        # if check_email(update, context):
             # помечаем состояние пользователя.
             u.state = static_state.S_TOP_UP_WALLET_USDT
             invoice = Invoice.objects.filter(payer_id=u)

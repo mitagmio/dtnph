@@ -6,16 +6,11 @@ from dtb.settings import DEBUG
 
 from tgbot.models import Location
 from tgbot.models import User
-from tgbot.models import P2p
 from tgbot.forms import BroadcastForm
 
 from tgbot.tasks import broadcast_message
 from tgbot.handlers.broadcast_message.utils import _send_message
 
-
-@admin.register(P2p)
-class P2pAdmin(admin.ModelAdmin):
-    list_display = ['timestamp', 'date_time', 'usdt_lkr', 'uah_usdt', 'eur_revolut_usdt', 'rub_tinkoff_usdt', 'created_at']
 
 @admin.register(User)
 class UserAdmin(admin.ModelAdmin):

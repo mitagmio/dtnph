@@ -15,7 +15,7 @@ from django.db.models import QuerySet, Manager
 from telegram import Update
 from telegram.ext import CallbackContext
 
-from dtb.settings import BINANCE_API, BINANCE_SECRET, DEBUG
+from dtb.settings import DEBUG
 from tgbot.handlers.utils.info import extract_user_data_from_update
 from utils.models import CreateUpdateTracker, nb, CreateTracker, GetOrNoneManager
 
