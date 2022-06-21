@@ -45,3 +45,9 @@ python3 -m pip install --upgrade pip
 
 # Install requirements
 pip install -r requirements.txt
+
+#env
+cp .env_example .env
+cp .env_db_example .env_db
+cp .env_web_example .env_web
+cp .env_letsencrypt_example .env_letsencrypt
