@@ -301,7 +301,7 @@ def cmd_admin(update: Update, context: CallbackContext):
     if u.is_admin:
         message = get_message_bot(update)
         id = context.bot.send_message(message.chat.id, static_text.ADMIN_MENU_TEXT.format(
-            P2p.pay_trade_history()), reply_markup=make_keyboard_for_cmd_admin(), parse_mode="HTML")
+            ''), reply_markup=make_keyboard_for_cmd_admin(), parse_mode="HTML")
         u.message_id = id.message_id
         u.save()
         del_mes(update, context, True)
