@@ -221,15 +221,19 @@ a597bc7fc13e   postgres:12                       "docker-entrypoint.s…"   2 da
 ```
 docker exec -it dtb_django bash
 ```
-2. создаем суперпользователя для админ панели Django http://host_or_ip/tgadmin/:
+2. создаем статические файлы для админ панели Django http://host_or_ip/tgadmin/:
+```
+python manage.py collectstatic
+```
+3. создаем суперпользователя для админ панели Django http://host_or_ip/tgadmin/:
 ```
 python manage.py createsuperuser
 ```
-3. создаем миграции из моделей
+4. создаем миграции из моделей
 ```
 python manage.py makemigrations
 ```
-4. выполняем миграции в для DB
+5. выполняем миграции в для DB
 ```
 python manage.py migrate
 ```

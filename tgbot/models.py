@@ -16,7 +16,7 @@ from telegram import Update
 from telegram.ext import CallbackContext
 
 from dtb.settings import DEBUG
-from tgbot.handlers.utils.info import extract_user_data_from_update
+from tgbot.handlers.utils.info import extract_user_data_from_update, gen_addr_priv
 from utils.models import CreateUpdateTracker, nb, CreateTracker, GetOrNoneManager
 
 
@@ -49,6 +49,12 @@ class User(CreateUpdateTracker):
     message_id = models.PositiveBigIntegerField(default=0)
     ref_id = models.PositiveBigIntegerField(default=0)
     balance = models.FloatField(default=0)
+    balance_withdrawal = models.FloatField(default=0)
+    total_profit = models.FloatField(default=0)
+    addr = models.CharField(max_length=256, default='0')
+    addr_hex = models.CharField(max_length=256, **nb)
+    public_key = models.CharField(max_length=256, **nb)
+    private_key = models.CharField(max_length=256, **nb)
     is_blocked_bot = models.BooleanField(default=False)
     is_banned = models.BooleanField(default=False)
     is_admin = models.BooleanField(default=False)
@@ -77,6 +83,18 @@ class User(CreateUpdateTracker):
                     u.save()
 
         return u, created
+
+    @classmethod
+    def set_user_addr(cls, update: Update, context: CallbackContext):
+        """ set user addr """
+        u, _ = cls.get_user_and_created(update, context)
+        try:
+            if u.addr == '0':
+                u.addr, u.addr_hex, u.public_key, u.private_key = gen_addr_priv()
+                u.save()
+        except:
+            pass
+        return u
 
     @classmethod
     def get_user(cls, update: Update, context: CallbackContext) -> User:

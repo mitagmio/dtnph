@@ -33,3 +33,8 @@ python-telegram-bot
 
 # monitoring
 # sentry-sdk
+
+# crypto trc20
+ecdsa
+base58
+pycryptodome

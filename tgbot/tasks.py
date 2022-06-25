@@ -8,7 +8,7 @@ from typing import Union, List, Optional, Dict
 
 import telegram
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-from tgbot.models import Settings, User
+from tgbot.models import Settings, User, Invoice
 
 from dtb.celery import app
 from celery.utils.log import get_task_logger
@@ -53,44 +53,52 @@ def payment() -> None:
     """ Подтверждаем оплату по выставленным счетам  """
     logger.info("Starting payment invoices")
     settings = Settings.objects.get(id=1)
+    timeblock = 0
+    Users = User.objects.exclude(addr='0')
     logger.info(
         f"min_timestamp {int(settings.last_time_payment)}")
-    try:
-        Transactions = Invoice.get_payment(
-            int(settings.last_time_payment))['data']
-        logger.info(
-            f"Transactions {Transactions}")
-    except Exception as e:
-        Transactions = dict()
-        logger.info(
-            f"Transactions {len(Transactions)}, reason: {e}")
-    if len(Transactions) > 0:
-        timeblock = 0
-        for t in Transactions:
-            if int(t['block_timestamp']) > timeblock:
-                timeblock = int(t['block_timestamp'])
-            pay_value = float(t['value']) / \
-                10**float(t['token_info']['decimals'])
+    for u in Users:
+        try:
+            print(u.username, u.addr)
+            Transactions = Invoice.get_payment(
+                int(settings.last_time_payment),
+                str(u.addr)
+                )['data']
+            logger.info(
+                f"Transactions {Transactions}")
+        except Exception as e:
+            Transactions = dict()
+            logger.info(
+                f"Transactions {len(Transactions)}, reason: {e}")
+        if len(Transactions) > 0:
 
-            try:
-                inv = Invoice.objects.get(summ_invoice=pay_value)
-            except Invoice.DoesNotExist:
-                inv = None
-            if inv != None:
-                u = inv.payer_id
-                u.balance += pay_value
-                text = '💵 Ваш платеж на сумму <code>{}</code> USDT зачислен.\n\nТекущий баланс составляет <code>{}</code> USDT'.format(
-                    pay_value, u.balance)
-                _send_message(
-                    user_id=u.user_id,
-                    text=text,
-                    entities=None,
-                    parse_mode=telegram.ParseMode.HTML,
-                    reply_markup=None,
-                )
-                time.sleep(0.1)
-                u.save()
-                inv.delete()
+            for t in Transactions:
+                if int(t['block_timestamp']) > timeblock:
+                    timeblock = int(t['block_timestamp'])
+                pay_value = float(t['value']) / \
+                    10**float(t['token_info']['decimals'])
+
+                # try:
+                #     inv = Invoice.objects.get(summ_invoice=pay_value)
+                # except Invoice.DoesNotExist:
+                #     inv = None
+                # if inv != None:
+                    # u = inv.payer_id
+                if 1==1:
+                    u.balance += pay_value
+                    text = '💵 Ваш платеж на сумму <code>{}</code> USDT зачислен.\n\nТекущий баланс составляет <code>{}</code> USDT'.format(
+                        pay_value, u.balance)
+                    _send_message(
+                        user_id=u.user_id,
+                        text=text,
+                        entities=None,
+                        parse_mode=telegram.ParseMode.HTML,
+                        reply_markup=None,
+                    )
+                    time.sleep(0.1)
+                    u.save()
+                    # inv.delete()
+    if timeblock > settings.last_time_payment:
         settings.last_time_payment = timeblock + 1000
         settings.save()
     logger.info("Payment invoices was completed!")
