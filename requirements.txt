@@ -39,6 +39,9 @@ ecdsa
 base58
 pycryptodome
 
+#tron
+tronpy
+
 # qr
 Pillow
 qrcode
