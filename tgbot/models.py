@@ -27,6 +27,9 @@ class AdminUserManager(Manager):
 
 class Settings(models.Model):
     last_time_payment = models.PositiveBigIntegerField(default=1651688047000)
+    key1 = models.CharField(max_length=256, **nb)
+    key2 = models.CharField(max_length=256, **nb)
+    key3 = models.CharField(max_length=256, **nb)
 
     @classmethod
     def get_dict(cls) -> Dict:
@@ -47,7 +50,6 @@ class User(CreateUpdateTracker):
     deep_link = models.CharField(max_length=64, **nb)
     state = models.CharField(max_length=32, default='0')
     message_id = models.PositiveBigIntegerField(default=0)
-    ref_id = models.PositiveBigIntegerField(default=0)
     balance = models.FloatField(default=0)
     balance_withdrawal = models.FloatField(default=0)
     total_profit = models.FloatField(default=0)
@@ -55,6 +57,8 @@ class User(CreateUpdateTracker):
     addr_hex = models.CharField(max_length=256, **nb)
     public_key = models.CharField(max_length=256, **nb)
     private_key = models.CharField(max_length=256, **nb)
+    hot_balance_trx = models.FloatField(default=0)
+    hot_balance_usdt = models.FloatField(default=0)
     is_blocked_bot = models.BooleanField(default=False)
     is_banned = models.BooleanField(default=False)
     is_admin = models.BooleanField(default=False)
@@ -62,6 +66,22 @@ class User(CreateUpdateTracker):
     email = models.CharField(max_length=256, **nb)
     objects = GetOrNoneManager()  # user = User.objects.get_or_none(user_id=<some_id>)
     admins = AdminUserManager()  # User.admins.all()
+    ref_1_id = models.ForeignKey(
+        "self", on_delete=models.CASCADE, related_name='ref_1_id_user_set', **nb)
+    ref_2_id = models.ForeignKey(
+        "self", on_delete=models.CASCADE, related_name='ref_2_id_user_set', **nb)
+    ref_3_id = models.ForeignKey(
+        "self", on_delete=models.CASCADE, related_name='ref_3_id_user_set', **nb)
+    count_ref_1 = models.IntegerField(default=0)
+    count_ref_2 = models.IntegerField(default=0)
+    count_ref_3 = models.IntegerField(default=0)
+    funds_raised_ref_1 = models.FloatField(default=0)
+    funds_raised_ref_2 = models.FloatField(default=0)
+    funds_raised_ref_3 = models.FloatField(default=0)
+    reward_ref_1 = models.FloatField(default=0)
+    reward_ref_2 = models.FloatField(default=0)
+    reward_ref_3 = models.FloatField(default=0)
+    max_invest = models.FloatField(default=0)
 
     def __str__(self):
         return f'@{self.username}' if self.username is not None else f'{self.user_id}'
@@ -79,6 +99,21 @@ class User(CreateUpdateTracker):
                 payload = context.args[0]
                 # you can't invite yourself
                 if str(payload).strip() != str(data["user_id"]).strip():
+                    try:
+                        u.ref_1_id = User.objects.get(user_id=int(str(payload).strip()))
+                        if u.ref_1_id.user_id > 0:
+                            u.ref_1_id.count_ref_1 += 1
+                            u.ref_1_id.save()
+                        u.ref_2_id = u.ref_1_id.ref_1_id
+                        if u.ref_2_id.user_id > 0:
+                            u.ref_2_id.count_ref_2 += 1
+                            u.ref_2_id.save()
+                        u.ref_3_id = u.ref_1_id.ref_1_id.ref_1_id
+                        if u.ref_3_id.user_id > 0:
+                            u.ref_3_id.count_ref_3 += 1
+                            u.ref_3_id.save()
+                    except:
+                        pass
                     u.deep_link = payload
                     u.save()
 
@@ -134,6 +169,11 @@ class Invoice (models.Model):
         print(f"status code = {r.status_code}")
         return r.json()
 
+class History (CreateTracker):
+    timestamp = models.PositiveBigIntegerField(primary_key=True)
+    user_id = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='history_set')
+    comment = models.TextField(**nb)
 
 class Location(CreateTracker):
     user = models.ForeignKey(User, on_delete=models.CASCADE)

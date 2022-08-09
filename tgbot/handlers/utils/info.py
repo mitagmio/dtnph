@@ -4,7 +4,6 @@ from typing import Dict, Callable
 import telegram
 from telegram import Update
 
-import ecdsa
 import base58
 import ecdsa
 import random
