@@ -20,5 +20,6 @@ from django.urls import path, include
 urlpatterns = [
     path('tgadmin/', admin.site.urls),
     path('', include('tgbot.urls')),
+    path('', include('analytic.urls')),
     path('__debug__/', include(debug_toolbar.urls)),
 ]
