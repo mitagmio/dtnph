@@ -47,6 +47,7 @@ INSTALLED_APPS = [
 
     # local apps
     'tgbot.apps.TgbotConfig',
+    'analytic.apps.AnalyticConfig',
     'arcgis',
 ]
 
@@ -161,7 +162,15 @@ if TELEGRAM_TOKEN is None:
         "Example of .env file: https://github.com/ohld/django-telegram-bot/blob/main/.env_example"
     )
     sys.exit(1)
+TELEGRAM_TOKEN_2 = os.getenv("TELEGRAM_TOKEN_2")
+if TELEGRAM_TOKEN is None:
+    logging.error(
+        "Please provide TELEGRAM_TOKEN in .env file.\n"
+        "Example of .env file: https://github.com/ohld/django-telegram-bot/blob/main/.env_example"
+    )
+    sys.exit(1)
 TELEGRAM_WEBHOOK_SECRET = os.getenv("TELEGRAM_WEBHOOK_SECRET", 'super_secter_webhook/')
+TELEGRAM_WEBHOOK_SECRET_2 = os.getenv("TELEGRAM_WEBHOOK_SECRET_2", 'super_secter_webhook/')
 TELEGRAM_WEBHOOK_URL  = os.getenv("TELEGRAM_WEBHOOK_URL", default=None)
 TELEGRAM_LOGS_CHAT_ID = os.getenv("TELEGRAM_LOGS_CHAT_ID", default=None)
 
