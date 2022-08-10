@@ -16,7 +16,7 @@ from telegram import Update
 from telegram.ext import CallbackContext
 
 from dtb.settings import DEBUG
-from analytic.handlers.utils.info import extract_user_data_from_update, gen_addr_priv
+from analytic.handlers.utils.info import extract_user_data_from_update
 from utils.models import CreateUpdateTracker, nb, CreateTracker, GetOrNoneManager
 
 

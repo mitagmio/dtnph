@@ -3,7 +3,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 def make_keyboard_for_start() -> InlineKeyboardMarkup:
     buttons = [
         [
-            InlineKeyboardButton(text='✅ Продолжить', callback_data='Меню'),
+            InlineKeyboardButton(text='✅ Продолжить', callback_data='Старт'),
         ],
     ]
 

@@ -7,7 +7,7 @@ from telegram.ext import CallbackContext
 from traitlets import Float
 
 from analytic.handlers.onboarding import static_text, static_state
-from analytic.handlers.utils.info import extract_user_data_from_update, generate_qr
+from analytic.handlers.utils.info import extract_user_data_from_update, send_typing_action
 from analytic.models import User
 from analytic.handlers.onboarding.keyboards import *
 
@@ -278,7 +278,7 @@ State_Dict = {
 
 # словарь функций Меню
 Menu_Dict = {
-    'Старт': command_start,
+    'Старт': send_typing_action(command_start),
     'Меню': cmd_menu,
     'Почта': change_email,
     'Администрирование': cmd_admin,
