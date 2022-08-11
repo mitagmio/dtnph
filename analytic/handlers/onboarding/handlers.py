@@ -228,13 +228,13 @@ def command_start(update: Update, context: CallbackContext):
 def cmd_menu(update: Update, context: CallbackContext):
     u = User.get_user(update, context)
     message = get_message_bot(update)
-    if check_in(update, context):
+    # if check_in(update, context):
         # помечаем состояние пользователя.
-        u.state = static_state.S_MENU
-        id = context.bot.send_message(
-            message.chat.id, static_text.MENU, reply_markup=make_keyboard_for_cmd_menu(u.is_admin), parse_mode="HTML")
-        u.message_id = id.message_id
-        u.save()
+    u.state = static_state.S_MENU
+    id = context.bot.send_message(
+        message.chat.id, static_text.MENU, reply_markup=make_keyboard_for_cmd_menu(u.is_admin), parse_mode="HTML")
+    u.message_id = id.message_id
+    u.save()
     del_mes(update, context, True)
 
 
@@ -257,7 +257,7 @@ def cmd_admin(update: Update, context: CallbackContext):
     u = User.get_user(update, context)
     if u.is_admin:
         message = get_message_bot(update)
-        id = context.bot.send_message(message.chat.id, static_text.ADMIN_MENU_TEXT.format(), reply_markup=make_keyboard_for_cmd_admin(), parse_mode="HTML")
+        id = context.bot.send_message(message.chat.id, static_text.ADMIN_MENU_TEXT.format(''), reply_markup=make_keyboard_for_cmd_admin(), parse_mode="HTML")
         u.message_id = id.message_id
         u.save()
         del_mes(update, context, True)
@@ -278,7 +278,7 @@ State_Dict = {
 
 # словарь функций Меню
 Menu_Dict = {
-    'Старт': send_typing_action(command_start),
+    'Старт': command_start,
     'Меню': cmd_menu,
     'Почта': change_email,
     'Администрирование': cmd_admin,
