@@ -29,3 +29,5 @@ ADMIN_MENU_TEXT = """📝 Администрирование:
 
 <code>{}</code>
 """
+ADMIN_CHECK_USER = """
+"""

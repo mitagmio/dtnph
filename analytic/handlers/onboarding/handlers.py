@@ -272,6 +272,7 @@ def cmd_admin(update: Update, context: CallbackContext):
     u = User.get_user(update, context)
     if u.is_admin:
         message = get_message_bot(update)
+        u.state = static_state.S_MENU_ADMIN
         id = context.bot.send_message(message.chat.id, static_text.ADMIN_MENU_TEXT.format(''), reply_markup=make_keyboard_for_cmd_admin(), parse_mode="HTML")
         u.message_id = id.message_id
         u.save()
@@ -282,7 +283,12 @@ def cmd_admin(update: Update, context: CallbackContext):
 def cmd_add_camp(update: Update, context: CallbackContext):
     u = User.get_user(update, context)
     if u.is_admin:
-        pass
+        message = get_message_bot(update)
+        u.state = static_state.S_MENU_ADMIN
+        id = context.bot.send_message(message.chat.id, static_text.ADMIN_MENU_TEXT.format(''), reply_markup=make_keyboard_for_admin_menu(), parse_mode="HTML")
+        u.message_id = id.message_id
+        u.save()
+        del_mes(update, context, True)
     else:
         command_start(update, context)
 
@@ -290,7 +296,12 @@ def cmd_add_camp(update: Update, context: CallbackContext):
 def cmd_del_camp(update: Update, context: CallbackContext):
     u = User.get_user(update, context)
     if u.is_admin:
-        pass
+        message = get_message_bot(update)
+        u.state = static_state.S_MENU_ADMIN
+        id = context.bot.send_message(message.chat.id, static_text.ADMIN_MENU_TEXT.format(''), reply_markup=make_keyboard_for_admin_menu(), parse_mode="HTML")
+        u.message_id = id.message_id
+        u.save()
+        del_mes(update, context, True)
     else:
         command_start(update, context)
 
@@ -298,7 +309,12 @@ def cmd_del_camp(update: Update, context: CallbackContext):
 def cmd_stat_camp(update: Update, context: CallbackContext):
     u = User.get_user(update, context)
     if u.is_admin:
-        pass
+        message = get_message_bot(update)
+        u.state = static_state.S_MENU_ADMIN
+        id = context.bot.send_message(message.chat.id, static_text.ADMIN_MENU_TEXT.format(''), reply_markup=make_keyboard_for_admin_menu(), parse_mode="HTML")
+        u.message_id = id.message_id
+        u.save()
+        del_mes(update, context, True)
     else:
         command_start(update, context)
 
@@ -306,10 +322,27 @@ def cmd_stat_camp(update: Update, context: CallbackContext):
 def cmd_check_user(update: Update, context: CallbackContext):
     u = User.get_user(update, context)
     if u.is_admin:
-        pass
+        message = get_message_bot(update)
+        u.state = static_state.S_CHECK_IN
+        id = context.bot.send_message(message.chat.id, static_text.ADMIN_CHECK_USER.format(''), reply_markup=make_keyboard_for_admin_menu(), parse_mode="HTML")
+        u.message_id = id.message_id
+        u.save()
+        del_mes(update, context, True)
     else:
         command_start(update, context)
 
+def s_check_user(update: Update, context: CallbackContext):
+    u = User.get_user(update, context)
+    if u.is_admin:
+        message = get_message_bot(update)
+        text = message.text
+        u.state = static_state.S_CHECK_IN
+        id = context.bot.send_message(message.chat.id, static_text.ADMIN_CHECK_USER.format(''), reply_markup=make_keyboard_for_admin_menu(), parse_mode="HTML")
+        u.message_id = id.message_id
+        u.save()
+        del_mes(update, context, True)
+    else:
+        command_start(update, context)
 
 def cmd_pass():
     pass
@@ -319,7 +352,7 @@ def cmd_pass():
 State_Dict = {
     # Когда выбрано Меню, мы можем только нажимать кнопки. Любой текст удаляется
     static_state.S_MENU: del_mes,
-    static_state.S_EMAIL: s_email,
+    static_state.S_CHECK_IN: s_check_user,
 }
 
 # словарь функций Меню

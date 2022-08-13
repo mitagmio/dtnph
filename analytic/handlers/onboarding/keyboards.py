@@ -65,3 +65,11 @@ def make_keyboard_for_cmd_admin() -> InlineKeyboardMarkup:
     buttons.append([btn_rem_camp])
     buttons.append([btn_main, btn_back])
     return InlineKeyboardMarkup(buttons)
+
+def make_keyboard_for_admin_menu() -> InlineKeyboardMarkup:
+    buttons = []
+    btn_back = InlineKeyboardButton(text='⏪ Назад', callback_data='Администрирование')
+    btn_main = InlineKeyboardButton(
+        text='⏮ В начало', callback_data='Старт')
+    buttons.append([btn_main, btn_back])
+    return InlineKeyboardMarkup(buttons)
