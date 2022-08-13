@@ -1,5 +1,7 @@
 import datetime
 import time
+from json import dumps, loads
+from types import SimpleNamespace
 
 from django.utils import timezone
 from telegram import Bot, ParseMode, Update
@@ -319,12 +321,12 @@ def cmd_stat_camp(update: Update, context: CallbackContext):
         command_start(update, context)
 
 
-def cmd_check_user(update: Update, context: CallbackContext):
+def cmd_check_user(update: Update, context: CallbackContext, text = ''):
     u = User.get_user(update, context)
     if u.is_admin:
         message = get_message_bot(update)
-        u.state = static_state.S_CHECK_IN
-        id = context.bot.send_message(message.chat.id, static_text.ADMIN_CHECK_USER.format(''), reply_markup=make_keyboard_for_admin_menu(), parse_mode="HTML")
+        u.state = static_state.S_CHECK_MESSAGE
+        id = context.bot.send_message(message.chat.id, static_text.ADMIN_CHECK_USER.format(text), reply_markup=make_keyboard_for_admin_menu(), parse_mode="HTML")
         u.message_id = id.message_id
         u.save()
         del_mes(update, context, True)
@@ -335,14 +337,36 @@ def s_check_user(update: Update, context: CallbackContext):
     u = User.get_user(update, context)
     if u.is_admin:
         message = get_message_bot(update)
-        text = message.text
-        u.state = static_state.S_CHECK_IN
-        id = context.bot.send_message(message.chat.id, static_text.ADMIN_CHECK_USER.format(''), reply_markup=make_keyboard_for_admin_menu(), parse_mode="HTML")
+        try:
+            f_u = User.objects.get(user_id=message.forward_from.id)
+            u.dict = dumps(dict(user_id=message.forward_from.id))
+        except:
+            return cmd_check_user(update, context, 'Пользователь не найден, попробуй еще раз...')
+        u.state = static_state.S_CHECK_SET_SUMM
+        id = context.bot.send_message(message.chat.id, static_text.ADMIN_CHECK_SET_SUMM.format(f_u), reply_markup=make_keyboard_for_admin_menu(), parse_mode="HTML")
         u.message_id = id.message_id
         u.save()
         del_mes(update, context, True)
     else:
         command_start(update, context)
+
+
+def s_check_set_summ(update: Update, context: CallbackContext):
+    u = User.get_user(update, context)
+    if u.is_admin:
+        message = get_message_bot(update)
+        try:
+            summ = float(message.text.strip())
+            temp = loads(u.dict, object_hook=lambda d: SimpleNamespace(**d))
+            f_u = User.objects.get(user_id=temp.user_id)
+            f_u.total_profit += summ
+            f_u.save()
+        except:
+            return cmd_check_user(update, context, 'Это не цифра, попробуй еще раз сначала.')
+        return cmd_check_user(update, context, 'Доход пользователя изменен')
+    else:
+        command_start(update, context)
+
 
 def cmd_pass():
     pass
@@ -352,7 +376,8 @@ def cmd_pass():
 State_Dict = {
     # Когда выбрано Меню, мы можем только нажимать кнопки. Любой текст удаляется
     static_state.S_MENU: del_mes,
-    static_state.S_CHECK_IN: s_check_user,
+    static_state.S_CHECK_MESSAGE: s_check_user,
+    static_state.S_CHECK_SET_SUMM: s_check_set_summ,
 }
 
 # словарь функций Меню

@@ -4,6 +4,7 @@ from typing import Dict, Callable
 import telegram
 from telegram import Update
 
+
 def is_number(s):
     try:
         float(s)
