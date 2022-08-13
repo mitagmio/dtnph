@@ -303,6 +303,14 @@ def cmd_stat_camp(update: Update, context: CallbackContext):
         command_start(update, context)
 
 
+def cmd_check_user(update: Update, context: CallbackContext):
+    u = User.get_user(update, context)
+    if u.is_admin:
+        pass
+    else:
+        command_start(update, context)
+
+
 def cmd_pass():
     pass
 
@@ -321,6 +329,7 @@ Menu_Dict = {
     'Почта': change_email,
     'Администрирование': cmd_admin,
     'Добавить_компанию': cmd_add_camp,
+    'Чек_пользователя': cmd_check_user,
     'Выгрузить_статистику': cmd_stat_camp,
     'Удалить_компанию': cmd_del_camp,
     'pass': cmd_pass,
