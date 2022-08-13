@@ -53,6 +53,7 @@ def make_keyboard_for_cmd_help() -> InlineKeyboardMarkup:
 def make_keyboard_for_cmd_admin() -> InlineKeyboardMarkup:
     buttons = []
     btn_add_camp = InlineKeyboardButton(text='❇️ Добавить компанию', callback_data='Добавить_компанию')
+    btn_add_camp = InlineKeyboardButton(text='📊 Выгрузить статистику', callback_data='Выгрузить_статистику')
     btn_rem_camp = InlineKeyboardButton(text='❌ Удалить компанию и всех пользователей', callback_data='Удалить_компанию')
     btn_back = InlineKeyboardButton(text='⏪ Назад', callback_data='Меню')
     btn_main = InlineKeyboardButton(
