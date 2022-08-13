@@ -7,8 +7,8 @@ from telegram.ext import CallbackContext
 from traitlets import Float
 
 from analytic.handlers.onboarding import static_text, static_state
-from analytic.handlers.utils.info import extract_user_data_from_update, send_typing_action
-from analytic.models import User
+from analytic.handlers.utils.info import extract_user_data_from_update, send_typing_action, is_number
+from analytic.models import User, Campaign, History
 from analytic.handlers.onboarding.keyboards import *
 
 # Отслеживаем вход в группу и назначаем рефералом в случае приглашения нового пользователя.
@@ -198,6 +198,21 @@ def s_email(update: Update, context: CallbackContext):
 def command_start(update: Update, context: CallbackContext):
     u, _ = User.get_user_and_created(update, context)
     message = get_message_bot(update)
+    url = ''
+    if context is not None and context.args is not None and len(context.args) > 0:
+        payload = context.args[0]
+        if not is_number(payload):
+            try:
+                camp = Campaign.objects.get(bot_url=payload)
+                name = camp.name
+                url = camp.url
+                _, h_created = History.objects.get_or_create(name=name, user_id=u, defaults={
+                    'bot_url': camp
+                })
+                if not h_created:
+                    History.objects.create(name=name, user_id=u, bot_url=camp, is_repeat=True)
+            except:
+                pass
     # if check_in(update, context):
         # if u.state == static_state.S_ACCEPTED_ORDER:
         #     cmd_accepted_order_show(update, context)
@@ -209,7 +224,7 @@ def command_start(update: Update, context: CallbackContext):
     text = '\n'
     u.state = static_state.S_MENU
     id = context.bot.send_message(message.chat.id, static_text.START_USER.format(
-        text=text, tgid=message.chat.id), reply_markup=make_keyboard_for_start(), parse_mode="HTML")  # отправляет приветствие и кнопку
+        text=text, tgid=message.chat.id), reply_markup=make_keyboard_for_start(url=url), parse_mode="HTML")  # отправляет приветствие и кнопку
     u.message_id = id.message_id
     u.save()
     del_mes(update, context, True)
@@ -264,6 +279,21 @@ def cmd_admin(update: Update, context: CallbackContext):
     else:
         command_start(update, context)
 
+def cmd_add_camp(update: Update, context: CallbackContext):
+    u = User.get_user(update, context)
+    if u.is_admin:
+        pass
+    else:
+        command_start(update, context)
+
+
+def cmd_del_camp(update: Update, context: CallbackContext):
+    u = User.get_user(update, context)
+    if u.is_admin:
+        pass
+    else:
+        command_start(update, context)
+
 
 def cmd_pass():
     pass
@@ -282,6 +312,8 @@ Menu_Dict = {
     'Меню': cmd_menu,
     'Почта': change_email,
     'Администрирование': cmd_admin,
+    'Добавить_компанию': cmd_add_camp,
+    'Удалить_компанию': cmd_del_camp,
     'pass': cmd_pass,
     'Help': cmd_help,
 }

@@ -4,6 +4,13 @@ from typing import Dict, Callable
 import telegram
 from telegram import Update
 
+def is_number(s):
+    try:
+        float(s)
+        return True
+    except ValueError:
+        return False
+
 def send_typing_action(func: Callable):
     """Sends typing action while processing func command."""
     @wraps(func)

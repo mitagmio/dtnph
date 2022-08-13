@@ -42,6 +42,7 @@ class User(CreateUpdateTracker):
     is_moderator = models.BooleanField(default=False)
     objects = GetOrNoneManager()  # user = User.objects.get_or_none(user_id=<some_id>)
     admins = AdminUserManager()  # User.admins.all()
+    dict = models.TextField(**nb)
 
     def __str__(self):
         return f'@{self.username}' if self.username is not None else f'{self.user_id}'
@@ -87,3 +88,20 @@ class User(CreateUpdateTracker):
         if self.username:
             return f'@{self.username}'
         return f"{self.first_name} {self.last_name}" if self.last_name else f"{self.first_name}"
+
+
+class Campaign (CreateTracker):
+    name = models.CharField(max_length=256)
+    bot_url = models.CharField(max_length=64, primary_key=True)
+    target_url = models.CharField(max_length=256, **nb)
+    ad_cost = models.FloatField(default=0)
+    comment = models.TextField(**nb)
+
+
+class History (CreateTracker):
+    name = models.CharField(max_length=256)
+    bot_url = models.ForeignKey(
+        Campaign, on_delete=models.CASCADE, related_name='history_camp_set')
+    user_id = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='history_user_set')
+    is_repeat = models.BooleanField(default=False)
