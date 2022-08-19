@@ -35,7 +35,6 @@ class User(CreateUpdateTracker):
     deep_link = models.CharField(max_length=64, **nb)
     state = models.CharField(max_length=32, default='0')
     message_id = models.PositiveBigIntegerField(default=0)
-    total_profit = models.FloatField(default=0)
     is_blocked_bot = models.BooleanField(default=False)
     is_banned = models.BooleanField(default=False)
     is_admin = models.BooleanField(default=False)
@@ -104,4 +103,5 @@ class History (CreateTracker):
         Campaign, on_delete=models.CASCADE, related_name='history_camp_set')
     user_id = models.ForeignKey(
         User, on_delete=models.CASCADE, related_name='history_user_set')
+    total_profit = models.FloatField(default=0)
     is_repeat = models.BooleanField(default=False)

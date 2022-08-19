@@ -33,6 +33,8 @@ python-telegram-bot
 
 # monitoring
 # sentry-sdk
+# exel
+openpyxl==3.0.10
 
 # crypto trc20
 ecdsa

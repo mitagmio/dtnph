@@ -3,15 +3,18 @@ import time
 from json import dumps, loads
 from types import SimpleNamespace
 
+from django.db.models import Sum
 from django.utils import timezone
-from telegram import Bot, ParseMode, Update
+from telegram import Bot, ParseMode, Update, Message
 from telegram.ext import CallbackContext
 from traitlets import Float
 
 from analytic.handlers.onboarding import static_text, static_state
 from analytic.handlers.utils.info import extract_user_data_from_update, send_typing_action, is_number
+from analytic.handlers.utils.util import _get_csv_from_qs_values
 from analytic.models import User, Campaign, History
 from analytic.handlers.onboarding.keyboards import *
+from tgbot.handlers.broadcast_message.utils import _from_celery_entities_to_entities
 
 # Отслеживаем вход в группу и назначаем рефералом в случае приглашения нового пользователя.
 
@@ -26,7 +29,7 @@ def status_handler_func(update: Update, context: CallbackContext):
 
 
 def message_handler_func(update: Update, context: CallbackContext):
-    print('message_handler_func', update)
+    #print('message_handler_func', update)
     if hasattr(update, 'message') and update.message != None:
         u = User.get_user(update, context)
         if update.message.chat.id != -1001793015412:
@@ -201,14 +204,16 @@ def command_start(update: Update, context: CallbackContext):
     u, _ = User.get_user_and_created(update, context)
     message = get_message_bot(update)
     url = ''
+    t = {}
     if context is not None and context.args is not None and len(context.args) > 0:
         payload = context.args[0]
         if not is_number(payload):
             try:
                 camp = Campaign.objects.get(bot_url=payload)
                 name = camp.name
-                url = camp.url
-                _, h_created = History.objects.get_or_create(name=name, user_id=u, defaults={
+                url = camp.target_url
+                t = loads(camp.comment.replace("\'", ""))
+                h, h_created = History.objects.get_or_create(name=name, user_id=u, is_repeat=False, defaults={
                     'bot_url': camp
                 })
                 if not h_created:
@@ -225,8 +230,19 @@ def command_start(update: Update, context: CallbackContext):
         #     return
     text = '\n'
     u.state = static_state.S_MENU
-    id = context.bot.send_message(message.chat.id, static_text.START_USER.format(
-        text=text, tgid=message.chat.id), reply_markup=make_keyboard_for_start(url=url), parse_mode="HTML")  # отправляет приветствие и кнопку
+    print(t)
+    print('photo' in t)
+    if 'photo' in t and t['photo'] != None and len(t['photo']) > 0:
+        entities = _from_celery_entities_to_entities(t['caption_entities'])
+        id = context.bot.send_photo(
+                chat_id=message.chat.id, photo=t['photo'][-1]['file_id'], caption=t['caption'] if 'caption' in t else None, caption_entities=entities, reply_markup=make_keyboard_for_start(url = url))
+    if 'text' in t and t['text'] != None  and len(t['text']) > 0 and t['text'] != '_':
+        entities = _from_celery_entities_to_entities(t['entities'])
+        id = context.bot.send_message(
+            message.chat.id, t['text'], entities=entities, reply_markup=make_keyboard_for_start(url = url), disable_web_page_preview=True)
+    if (not 'photo' in t and not 'text' in t) or ('text' in t and t['text'] != None  and len(t['text']) > 0 and t['text'] == '_'):
+        id = context.bot.send_message(message.chat.id, static_text.START_USER.format(
+            text=text), reply_markup=make_keyboard_for_start(url=url), parse_mode="HTML")  # отправляет приветствие и кнопку
     u.message_id = id.message_id
     u.save()
     del_mes(update, context, True)
@@ -248,8 +264,11 @@ def cmd_menu(update: Update, context: CallbackContext):
     # if check_in(update, context):
         # помечаем состояние пользователя.
     u.state = static_state.S_MENU
+    admin_menu = False
+    if u.is_admin or u.is_moderator:
+        admin_menu = True
     id = context.bot.send_message(
-        message.chat.id, static_text.MENU, reply_markup=make_keyboard_for_cmd_menu(u.is_admin), parse_mode="HTML")
+        message.chat.id, static_text.MENU, reply_markup=make_keyboard_for_cmd_menu(admin_menu), parse_mode="HTML")
     u.message_id = id.message_id
     u.save()
     del_mes(update, context, True)
@@ -262,6 +281,7 @@ def cmd_menu(update: Update, context: CallbackContext):
 def cmd_help(update: Update, context: CallbackContext):
     u = User.get_user(update, context)
     message = get_message_bot(update)
+    # u.state = static_state.S_MENU_HELP
     id = context.bot.send_message(
         message.chat.id, static_text.HELP,
         reply_markup=make_keyboard_for_cmd_help(), parse_mode="HTML", disable_web_page_preview=True)
@@ -269,25 +289,32 @@ def cmd_help(update: Update, context: CallbackContext):
     u.save()
     del_mes(update, context, True)
 
+def s_help(update: Update, context: CallbackContext):
+    u = User.get_user(update, context)
+    message = get_message_bot(update)
+    u.state = static_state.S_MENU_HELP
+    temp = dumps(message.to_dict())
+    t = loads(temp)
+    if hasattr(message, 'photo') and message.photo != None and len(message.photo) > 0:
+        entities = _from_celery_entities_to_entities(t['caption_entities'])
+        id = context.bot.send_photo(
+                chat_id=message.chat.id, photo=message.photo[-1]['file_id'], caption=message.caption, caption_entities=entities, reply_markup=make_keyboard_for_start(url = 'https://t.me/Your_bot?start=1821543506'))#make_keyboard_for_cmd_help())
+    if hasattr(message, 'text') and message.text != None  and len(message.text) > 0:
+        entities = _from_celery_entities_to_entities(t['entities'])
+        id = context.bot.send_message(
+            message.chat.id, t['text'], entities=entities,
+            reply_markup=make_keyboard_for_cmd_help(), disable_web_page_preview=True)
+    u.message_id = id.message_id
+    u.save()
+    del_mes(update, context, True)
+
 
 def cmd_admin(update: Update, context: CallbackContext):
     u = User.get_user(update, context)
-    if u.is_admin:
+    if u.is_admin or u.is_moderator:
         message = get_message_bot(update)
         u.state = static_state.S_MENU_ADMIN
-        id = context.bot.send_message(message.chat.id, static_text.ADMIN_MENU_TEXT.format(''), reply_markup=make_keyboard_for_cmd_admin(), parse_mode="HTML")
-        u.message_id = id.message_id
-        u.save()
-        del_mes(update, context, True)
-    else:
-        command_start(update, context)
-
-def cmd_add_camp(update: Update, context: CallbackContext):
-    u = User.get_user(update, context)
-    if u.is_admin:
-        message = get_message_bot(update)
-        u.state = static_state.S_MENU_ADMIN
-        id = context.bot.send_message(message.chat.id, static_text.ADMIN_MENU_TEXT.format(''), reply_markup=make_keyboard_for_admin_menu(), parse_mode="HTML")
+        id = context.bot.send_message(message.chat.id, static_text.ADMIN_MENU_TEXT.format(''), reply_markup=make_keyboard_for_cmd_admin(u.is_admin), parse_mode="HTML")
         u.message_id = id.message_id
         u.save()
         del_mes(update, context, True)
@@ -295,12 +322,29 @@ def cmd_add_camp(update: Update, context: CallbackContext):
         command_start(update, context)
 
 
-def cmd_del_camp(update: Update, context: CallbackContext):
+def cmd_assign_camp(update: Update, context: CallbackContext, text = ''):
+    u = User.get_user(update, context)
+    message = get_message_bot(update)
+    if u.is_admin:
+        u.state = static_state.S_ASSIGN_CAMP_NAME
+        camp_query = History.objects.order_by().values_list('name', flat=True).distinct('name')
+        camps = ''
+        for c_q in camp_query:
+            camps += f'<code>{c_q}</code>\n'
+        id = context.bot.send_message(message.chat.id, static_text.ADMIN_ASSIGN_CAMP_NAME.format(text, camps), reply_markup=make_keyboard_for_admin_menu(), parse_mode="HTML")
+        u.message_id = id.message_id
+        u.save()
+        del_mes(update, context, True)
+    else:
+        command_start(update, context)
+
+def s_assign_camp_name(update: Update, context: CallbackContext, text = ''):
     u = User.get_user(update, context)
     if u.is_admin:
         message = get_message_bot(update)
-        u.state = static_state.S_MENU_ADMIN
-        id = context.bot.send_message(message.chat.id, static_text.ADMIN_MENU_TEXT.format(''), reply_markup=make_keyboard_for_admin_menu(), parse_mode="HTML")
+        u.dict = dumps(dict(name=message.text.strip()))
+        u.state = static_state.S_ASSIGN_CAMP_USER
+        id = context.bot.send_message(message.chat.id, static_text.ADMIN_ASSIGN_CAMP_USER.format(text), reply_markup=make_keyboard_for_admin_menu(), parse_mode="HTML")
         u.message_id = id.message_id
         u.save()
         del_mes(update, context, True)
@@ -308,12 +352,286 @@ def cmd_del_camp(update: Update, context: CallbackContext):
         command_start(update, context)
 
 
-def cmd_stat_camp(update: Update, context: CallbackContext):
+def s_assign_camp_user(update: Update, context: CallbackContext):
+    u = User.get_user(update, context)
+    if u.is_admin or u.is_moderator:
+        message = get_message_bot(update)
+        if hasattr(message, 'text') and message.text[0] == '@':
+            user_ = message.text.strip().split(' ')[0]
+        elif hasattr(message, 'forward_from') and hasattr(message.forward_from, 'id') and message.forward_from.id > 0:
+            user_ = message.forward_from.id
+        else:
+            return cmd_assign_camp(update, context, 'Пользователь не найден, попробуй еще раз...')
+        try:
+            f_u = User.get_user_by_username_or_user_id(user_)
+            temp = loads(u.dict, object_hook=lambda d: SimpleNamespace(**d))
+            f_u.dict = dumps(dict(name=temp.name))
+            f_u.is_moderator = not f_u.is_moderator
+            f_u.save()
+        except:
+            return cmd_assign_camp(update, context, 'Пользователь не найден, попробуй еще раз...')
+        u.state = static_state.S_CHECK_SET_SUMM
+        text = f'разжалован из модераторов кампании {temp.name}'
+        if f_u.is_moderator:
+            text = f'назначен модератором кампании {temp.name}'
+        id = context.bot.send_message(message.chat.id, static_text.ADMIN_ASSIGN_CAMP_USER_READY.format(f_u, text), reply_markup=make_keyboard_for_admin_menu(), parse_mode="HTML")
+        u.message_id = id.message_id
+        u.save()
+        del_mes(update, context, True)
+    else:
+        command_start(update, context)
+
+
+def cmd_add_camp(update: Update, context: CallbackContext, text = ''):
+    u = User.get_user(update, context)
+    message = get_message_bot(update)
+    if u.is_moderator:
+        u.state = static_state.S_ADD_CAMP_BOT_URL
+        id = context.bot.send_message(message.chat.id, static_text.ADMIN_ADD_CAMP_BOT_URL.format(text), reply_markup=make_keyboard_for_admin_menu(), parse_mode="HTML")
+        u.message_id = id.message_id
+        u.save()
+        return
+    if u.is_admin:
+        u.state = static_state.S_ADD_CAMP_NAME
+        camp_query = Campaign.objects.order_by().values_list('name', flat=True).distinct('name')
+        camps = ''
+        for c_q in camp_query:
+            camps += f'<code>{c_q}</code>\n'
+        id = context.bot.send_message(message.chat.id, static_text.ADMIN_ADD_CAMP.format(text, camps), reply_markup=make_keyboard_for_admin_menu(), parse_mode="HTML")
+        u.message_id = id.message_id
+        u.save()
+        del_mes(update, context, True)
+        return
+    else:
+        command_start(update, context)
+
+def s_add_camp_name(update: Update, context: CallbackContext, text = ''):
     u = User.get_user(update, context)
     if u.is_admin:
         message = get_message_bot(update)
+        try:
+            u.dict = dumps(dict(name=message.text.strip()))
+        except:
+            return cmd_add_camp(update, context, 'Не получилось записать название кампании, попробуй покороче')
+        u.state = static_state.S_ADD_CAMP_BOT_URL
+        id = context.bot.send_message(message.chat.id, static_text.ADMIN_ADD_CAMP_BOT_URL.format(text), reply_markup=make_keyboard_for_admin_menu(), parse_mode="HTML")
+        u.message_id = id.message_id
+        u.save()
+        del_mes(update, context, True)
+    else:
+        command_start(update, context)
+
+
+def s_add_camp_bot_url(update: Update, context: CallbackContext, text = ''):
+    u = User.get_user(update, context)
+    if u.is_admin or u.is_moderator:
+        message = get_message_bot(update)
+        try:
+            bot_url = message.text.strip()
+            if len(bot_url) <= 64 and len(bot_url) > 0:
+                temp = loads(u.dict, object_hook=lambda d: SimpleNamespace(**d))
+                temp.bot_url = bot_url
+                u.dict = dumps(temp.__dict__)
+                u.state = static_state.S_ADD_CAMP_TARGET_URL
+                id = context.bot.send_message(message.chat.id, static_text.ADMIN_ADD_CAMP_TARGET_URL.format(text), reply_markup=make_keyboard_for_admin_menu(), parse_mode="HTML")
+                u.message_id = id.message_id
+                u.save()
+                del_mes(update, context, True)
+            else:
+                return cmd_add_camp(update, context, 'Слишком длинная ссылка. Начинаем с начала')
+        except:
+            return cmd_add_camp(update, context, 'Не удалось сохранить ссылку')
+    else:
+        command_start(update, context)
+
+def s_add_camp_target_url(update: Update, context: CallbackContext, text = ''):
+    u = User.get_user(update, context)
+    if u.is_admin or u.is_moderator:
+        message = get_message_bot(update)
+        try:
+            target_url = message.text.strip()
+            temp = loads(u.dict, object_hook=lambda d: SimpleNamespace(**d))
+            temp.target_url = target_url
+            u.dict = dumps(temp.__dict__)
+            u.state = static_state.S_ADD_CAMP_COMMENT
+            id = context.bot.send_message(message.chat.id, static_text.ADMIN_ADD_CAMP_COMMENT.format(text), reply_markup=make_keyboard_for_admin_menu(), parse_mode="HTML")
+            u.message_id = id.message_id
+            u.save()
+            del_mes(update, context, True)
+        except:
+            return cmd_add_camp(update, context, 'Не удалось сохранить ссылку')
+    else:
+        command_start(update, context)
+
+def s_add_camp_comment(update: Update, context: CallbackContext, text = ''):
+    u = User.get_user(update, context)
+    message = get_message_bot(update)
+    u.state = static_state.S_ADD_CAMP_AD_COST
+    temp = loads(u.dict, object_hook=lambda d: SimpleNamespace(**d))
+    temp.comment = dumps(message.to_dict())
+    t = loads(temp.comment)
+    if hasattr(message, 'photo') and message.photo != None and len(message.photo) > 0:
+        entities = _from_celery_entities_to_entities(t['caption_entities'])
+        id = context.bot.send_photo(
+                chat_id=message.chat.id, photo=t['photo'][-1]['file_id'], caption=message.caption, caption_entities=entities, reply_markup=make_keyboard_for_start(url = temp.target_url))
+    if hasattr(message, 'text') and message.text != None and message.text != '_'  and len(message.text) > 0:
+        entities = _from_celery_entities_to_entities(t['entities'])
+        id = context.bot.send_message(
+            message.chat.id, t['text'], entities=entities, reply_markup=make_keyboard_for_start(url = temp.target_url), disable_web_page_preview=True)
+    if hasattr(message, 'text') and message.text == '_':
+        temp.comment = {}
+        id = context.bot.send_message(message.chat.id, static_text.START_USER.format(
+            text=text), reply_markup=make_keyboard_for_start(url=temp.target_url), parse_mode="HTML")  # отправляет приветствие и кнопку'
+    u.dict = dumps(temp.__dict__)
+    id = context.bot.send_message(message.chat.id, static_text.ADMIN_ADD_CAMP_AD_COST.format(text), reply_markup=make_keyboard_for_admin_menu_change(), parse_mode="HTML")
+    u.message_id = id.message_id
+    u.save()
+    del_mes(update, context, True)
+
+def cmd_change_post(update: Update, context: CallbackContext, text = ''):
+    u = User.get_user(update, context)
+    message = get_message_bot(update)
+    u.state = static_state.S_ADD_CAMP_COMMENT
+    id = context.bot.send_message(message.chat.id, static_text.ADMIN_ADD_CAMP_COMMENT.format(text), reply_markup=make_keyboard_for_admin_menu(), parse_mode="HTML")
+    u.message_id = id.message_id
+    u.save()
+    del_mes(update, context, True)
+
+def s_add_camp_ad_cost(update: Update, context: CallbackContext):
+    u = User.get_user(update, context)
+    if u.is_admin or u.is_moderator:
+        message = get_message_bot(update)
+        try:
+            summ = float(message.text.strip())
+            temp = loads(u.dict)
+            t = temp['comment']
+            temp = loads(u.dict, object_hook=lambda d: SimpleNamespace(**d))
+            temp.ad_cost = summ
+        except:
+            return cmd_add_camp(update, context, 'Это не цифра, попробуй еще раз сначала.')
+        Campaign.objects.create(name=temp.name,
+            bot_url=temp.bot_url, 
+            target_url=temp.target_url,
+            ad_cost=temp.ad_cost,
+            comment=t
+        )#{dumps(temp.__dict__)}
+        return cmd_add_camp(update, context, f'Данные сохранены.\nСсылка для рекламы:\n<code>https://t.me/Trafficcontrol_bot?start={temp.bot_url}</code>')
+    else:
+        command_start(update, context)
+
+
+def cmd_my_camp(update: Update, context: CallbackContext, text = ''):
+    u = User.get_user(update, context)
+    if u.is_admin or u.is_moderator:
+        message = get_message_bot(update)
+        u.state = static_state.S_DEL_CAMP
+        if u.is_admin:
+            camp_query = Campaign.objects.order_by().values_list('name', 'bot_url').distinct('name','bot_url')
+        else:
+            temp = loads(u.dict, object_hook=lambda d: SimpleNamespace(**d))
+            camp_query = Campaign.objects.filter(name=temp.name).order_by().values_list('name', 'bot_url').distinct('name','bot_url')
+        camps = ''
+        for c_n, c_u in camp_query:
+            camps += f'{c_n} <code>https://t.me/Trafficcontrol_bot?start={c_u}</code>\n'
+        id = context.bot.send_message(message.chat.id, camps, reply_markup=make_keyboard_for_admin_menu(), parse_mode="HTML")
+        u.message_id = id.message_id
+        u.save()
+        del_mes(update, context, True)
+    else:
+        command_start(update, context)
+
+
+def cmd_del_camp(update: Update, context: CallbackContext, text = ''):
+    u = User.get_user(update, context)
+    if u.is_admin or u.is_moderator:
+        message = get_message_bot(update)
+        u.state = static_state.S_DEL_CAMP
+        if u.is_admin:
+            camp_query = Campaign.objects.order_by().values_list('name', 'bot_url').distinct('name','bot_url')
+        else:
+            temp = loads(u.dict, object_hook=lambda d: SimpleNamespace(**d))
+            camp_query = Campaign.objects.filter(name=temp.name).order_by().values_list('name', 'bot_url').distinct('name','bot_url')
+        camps = ''
+        for c_n, c_u in camp_query:
+            camps += f'<code>{c_n} {c_u}</code>\n'
+        id = context.bot.send_message(message.chat.id, static_text.ADMIN_DEL_CAMP.format(text, camps), reply_markup=make_keyboard_for_admin_menu(), parse_mode="HTML")
+        u.message_id = id.message_id
+        u.save()
+        del_mes(update, context, True)
+    else:
+        command_start(update, context)
+
+def s_del_camp(update: Update, context: CallbackContext, text = ''):
+    u = User.get_user(update, context)
+    if u.is_admin or u.is_moderator:
+        message = get_message_bot(update)
+        name, bot_url = message.text.strip().split(' ')
         u.state = static_state.S_MENU_ADMIN
-        id = context.bot.send_message(message.chat.id, static_text.ADMIN_MENU_TEXT.format(''), reply_markup=make_keyboard_for_admin_menu(), parse_mode="HTML")
+        try:
+            Campaign.objects.filter(name=name, bot_url=bot_url).delete()
+            History.objects.filter(name=name, bot_url=bot_url).delete()
+            if text == '':
+                text += f"Кампания: <code>{name} {bot_url}</code> удалена."
+        except:
+            text += f"Кампания: <code>{name} {bot_url}</code> не существует."
+        id = context.bot.send_message(message.chat.id, static_text.ADMIN_DEL_CAMP_READY.format(text), reply_markup=make_keyboard_for_admin_menu(), parse_mode="HTML")
+        u.message_id = id.message_id
+        u.save()
+        del_mes(update, context, True)
+    else:
+        command_start(update, context)
+
+
+def cmd_stat_camp(update: Update, context: CallbackContext, text = ''):
+    u = User.get_user(update, context)
+    if u.is_moderator:
+        s_stat_camp_name(update, context)
+        return
+    if u.is_admin:
+        message = get_message_bot(update)
+        u.state = static_state.S_STAT_CAMP_NAME
+        camp_query = Campaign.objects.order_by().values_list('name', flat=True).distinct('name')
+        camps = ''
+        for c_n in camp_query:
+            camps += f'<code>{c_n}</code>\n'
+        id = context.bot.send_message(message.chat.id, static_text.ADMIN_STAT_CAMP.format(text, camps), reply_markup=make_keyboard_for_admin_menu(), parse_mode="HTML")
+        u.message_id = id.message_id
+        u.save()
+        del_mes(update, context, True)
+        return
+    else:
+        command_start(update, context)
+
+def s_stat_camp_name(update: Update, context: CallbackContext, text = ''):
+    u = User.get_user(update, context)
+    if u.is_admin or u.is_moderator:
+        message = get_message_bot(update)
+        if u.is_admin:
+            name = message.text.strip()
+            camp_query = History.objects.filter(name=name).values()
+        else:
+            temp = loads(u.dict, object_hook=lambda d: SimpleNamespace(**d))
+            name = temp.name
+            camp_query = History.objects.filter(name=name).values()
+        csv_camp = _get_csv_from_qs_values(camp_query)
+        u.state = static_state.S_MENU_ADMIN
+        campaign_bot_url = Campaign.objects.filter(name=name).order_by().values_list('name','bot_url', 'ad_cost').distinct('bot_url')
+        for name, bot_url, ad_cost in campaign_bot_url:
+            try:
+                summ = float(History.objects.filter(name=name, bot_url=bot_url).aggregate(Sum('total_profit'))['total_profit__sum'])
+                count_users = History.objects.filter(name=name, bot_url=bot_url).exclude(is_repeat=True).count()
+            except:
+                summ = 0
+                count_users = 0
+            price_user = 0
+            if count_users > 0 and ad_cost > 0:
+                price_user = ad_cost / count_users
+            percent = 0
+            if summ > 0 and ad_cost > 0:
+                percent = summ / ad_cost * 100
+            text += f"<code>Кампания: {name} {bot_url} Потрачено {ad_cost} Подписчики {count_users} Цена за подписчика {price_user} Доход {summ} Окупаемость % {percent}</code>\n\n"
+        id = context.bot.send_message(message.chat.id, static_text.ADMIN_STAT_CAMP_READY.format(text), reply_markup=make_keyboard_for_admin_menu(), parse_mode="HTML")
+        context.bot.send_document(chat_id=u.user_id, document=csv_camp)
         u.message_id = id.message_id
         u.save()
         del_mes(update, context, True)
@@ -323,8 +641,30 @@ def cmd_stat_camp(update: Update, context: CallbackContext):
 
 def cmd_check_user(update: Update, context: CallbackContext, text = ''):
     u = User.get_user(update, context)
+    message = get_message_bot(update)
+    if u.is_moderator:
+        u.state = static_state.S_CHECK_MESSAGE
+        id = context.bot.send_message(message.chat.id, static_text.ADMIN_CHECK_USER.format(text), reply_markup=make_keyboard_for_admin_menu(), parse_mode="HTML")
+        u.message_id = id.message_id
+        u.save()
+    if u.is_admin:
+        u.state = static_state.S_CHECK_CAMP_NAME
+        camp_query = History.objects.order_by().values_list('name', flat=True).distinct('name')
+        camps = ''
+        for c_q in camp_query:
+            camps += f'<code>{c_q}</code>\n'
+        id = context.bot.send_message(message.chat.id, static_text.ADMIN_CHECK_CAMP_USER.format(text, camps), reply_markup=make_keyboard_for_admin_menu(), parse_mode="HTML")
+        u.message_id = id.message_id
+        u.save()
+        del_mes(update, context, True)
+    else:
+        command_start(update, context)
+
+def s_check_camp_name(update: Update, context: CallbackContext, text = ''):
+    u = User.get_user(update, context)
     if u.is_admin:
         message = get_message_bot(update)
+        u.dict = dumps(dict(name=message.text.strip()))
         u.state = static_state.S_CHECK_MESSAGE
         id = context.bot.send_message(message.chat.id, static_text.ADMIN_CHECK_USER.format(text), reply_markup=make_keyboard_for_admin_menu(), parse_mode="HTML")
         u.message_id = id.message_id
@@ -333,13 +673,16 @@ def cmd_check_user(update: Update, context: CallbackContext, text = ''):
     else:
         command_start(update, context)
 
+
 def s_check_user(update: Update, context: CallbackContext):
     u = User.get_user(update, context)
-    if u.is_admin:
+    if u.is_admin or u.is_moderator:
         message = get_message_bot(update)
         try:
             f_u = User.objects.get(user_id=message.forward_from.id)
-            u.dict = dumps(dict(user_id=message.forward_from.id))
+            temp = loads(u.dict, object_hook=lambda d: SimpleNamespace(**d))
+            temp.user_id = message.forward_from.id
+            u.dict = dumps(temp.__dict__)
         except:
             return cmd_check_user(update, context, 'Пользователь не найден, попробуй еще раз...')
         u.state = static_state.S_CHECK_SET_SUMM
@@ -353,14 +696,14 @@ def s_check_user(update: Update, context: CallbackContext):
 
 def s_check_set_summ(update: Update, context: CallbackContext):
     u = User.get_user(update, context)
-    if u.is_admin:
+    if u.is_admin or u.is_moderator:
         message = get_message_bot(update)
         try:
             summ = float(message.text.strip())
             temp = loads(u.dict, object_hook=lambda d: SimpleNamespace(**d))
-            f_u = User.objects.get(user_id=temp.user_id)
-            f_u.total_profit += summ
-            f_u.save()
+            h_u = History.objects.get(name=temp.name, user_id=temp.user_id, is_repeat=False)
+            h_u.total_profit += summ
+            h_u.save()
         except:
             return cmd_check_user(update, context, 'Это не цифра, попробуй еще раз сначала.')
         return cmd_check_user(update, context, 'Доход пользователя изменен')
@@ -376,8 +719,18 @@ def cmd_pass():
 State_Dict = {
     # Когда выбрано Меню, мы можем только нажимать кнопки. Любой текст удаляется
     static_state.S_MENU: del_mes,
+    static_state.S_CHECK_CAMP_NAME: s_check_camp_name,
     static_state.S_CHECK_MESSAGE: s_check_user,
     static_state.S_CHECK_SET_SUMM: s_check_set_summ,
+    static_state.S_ADD_CAMP_NAME: s_add_camp_name,
+    static_state.S_ADD_CAMP_BOT_URL: s_add_camp_bot_url,
+    static_state.S_ADD_CAMP_TARGET_URL: s_add_camp_target_url,
+    static_state.S_ADD_CAMP_COMMENT: s_add_camp_comment,
+    static_state.S_ADD_CAMP_AD_COST: s_add_camp_ad_cost,
+    static_state.S_STAT_CAMP_NAME: s_stat_camp_name,
+    static_state.S_DEL_CAMP: s_del_camp,
+    static_state.S_ASSIGN_CAMP_NAME: s_assign_camp_name,
+    static_state.S_ASSIGN_CAMP_USER: s_assign_camp_user,
 }
 
 # словарь функций Меню
@@ -386,10 +739,13 @@ Menu_Dict = {
     'Меню': cmd_menu,
     'Почта': change_email,
     'Администрирование': cmd_admin,
-    'Добавить_компанию': cmd_add_camp,
+    'Назначить_кампанию': cmd_assign_camp,
+    'Мои_кампании': cmd_my_camp,
+    'Добавить_кампанию': cmd_add_camp,
+    'изменить_пост': cmd_change_post,
     'Чек_пользователя': cmd_check_user,
     'Выгрузить_статистику': cmd_stat_camp,
-    'Удалить_компанию': cmd_del_camp,
+    'Удалить_кампанию': cmd_del_camp,
     'pass': cmd_pass,
     'Help': cmd_help,
 }

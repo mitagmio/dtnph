@@ -33,6 +33,7 @@ def setup_dispatcher(dp):
 
     # onboarding other handlers
     dp.add_handler(MessageHandler(Filters.text, onboarding_handlers.message_handler_func))
+    dp.add_handler(MessageHandler(Filters.photo, onboarding_handlers.message_handler_func))
     dp.add_handler(CallbackQueryHandler(onboarding_handlers.callback_inline))
     dp.add_handler(MessageHandler(Filters.status_update.new_chat_members,
                    onboarding_handlers.status_handler_func))
