@@ -519,12 +519,67 @@ def s_add_camp_ad_cost(update: Update, context: CallbackContext):
     else:
         command_start(update, context)
 
+def cmd_сh_camp(update: Update, context: CallbackContext, text = ''):
+    u = User.get_user(update, context)
+    if u.is_admin or u.is_moderator:
+        message = get_message_bot(update)
+        u.state = static_state.S_СH_CAMP
+        if u.is_admin:
+            camp_query = Campaign.objects.order_by().values_list('name', 'bot_url').distinct('name','bot_url')
+        else:
+            temp = loads(u.dict, object_hook=lambda d: SimpleNamespace(**d))
+            camp_query = Campaign.objects.filter(name=temp.name).order_by().values_list('name', 'bot_url').distinct('name','bot_url')
+        camps = ''
+        for c_n, c_u in camp_query:
+            camps += f'<code>{c_n} {c_u}</code>\n'
+        id = context.bot.send_message(message.chat.id, static_text.ADMIN_СH_CAMP.format(text, camps), reply_markup=make_keyboard_for_admin_menu(), parse_mode="HTML")
+        u.message_id = id.message_id
+        u.save()
+        del_mes(update, context, True)
+    else:
+        command_start(update, context)
+
+def s_сh_camp(update: Update, context: CallbackContext, text = ''):
+    u = User.get_user(update, context)
+    if u.is_admin or u.is_moderator:
+        message = get_message_bot(update)
+        name, bot_url = message.text.strip().split(' ')
+        u.state = static_state.S_СH_CAMP_AD_COST
+        u.dict = dumps(dict(name=name, bot_url=bot_url))
+        id = context.bot.send_message(message.chat.id, static_text.ADMIN_СH_CAMP_AD_COST.format(text), reply_markup=make_keyboard_for_admin_menu(), parse_mode="HTML")
+        u.message_id = id.message_id
+        u.save()
+        del_mes(update, context, True)
+    else:
+        command_start(update, context)
+
+def s_сh_camp_ad_cost(update: Update, context: CallbackContext, text = ''):
+    u = User.get_user(update, context)
+    if u.is_admin or u.is_moderator:
+        message = get_message_bot(update)
+        u.state = static_state.S_MENU_ADMIN
+        try:
+            temp = loads(u.dict, object_hook=lambda d: SimpleNamespace(**d))
+            summ = float(message.text)
+            camp = Campaign.objects.get(name=temp.name, bot_url=temp.bot_url)
+            camp.ad_cost = summ
+            camp.save()
+            if text == '':
+                text += f"Кампания: <code>{temp.name} {temp.bot_url}</code> сумма изменена."
+        except:
+            text += f"это не цифра"
+        id = context.bot.send_message(message.chat.id, static_text.ADMIN_СH_CAMP_AD_COST_READY.format(text), reply_markup=make_keyboard_for_admin_menu(), parse_mode="HTML")
+        u.message_id = id.message_id
+        u.save()
+        del_mes(update, context, True)
+    else:
+        command_start(update, context)
 
 def cmd_my_camp(update: Update, context: CallbackContext, text = ''):
     u = User.get_user(update, context)
     if u.is_admin or u.is_moderator:
         message = get_message_bot(update)
-        u.state = static_state.S_DEL_CAMP
+        u.state = static_state.S_MENU_ADMIN
         if u.is_admin:
             camp_query = Campaign.objects.order_by().values_list('name', 'bot_url').distinct('name','bot_url')
         else:
@@ -729,6 +784,8 @@ State_Dict = {
     static_state.S_ADD_CAMP_AD_COST: s_add_camp_ad_cost,
     static_state.S_STAT_CAMP_NAME: s_stat_camp_name,
     static_state.S_DEL_CAMP: s_del_camp,
+    static_state.S_СH_CAMP: s_сh_camp,
+    static_state.S_СH_CAMP_AD_COST: s_сh_camp_ad_cost,
     static_state.S_ASSIGN_CAMP_NAME: s_assign_camp_name,
     static_state.S_ASSIGN_CAMP_USER: s_assign_camp_user,
 }
@@ -740,6 +797,7 @@ Menu_Dict = {
     'Почта': change_email,
     'Администрирование': cmd_admin,
     'Назначить_кампанию': cmd_assign_camp,
+    'Изменить_сумму': cmd_сh_camp,
     'Мои_кампании': cmd_my_camp,
     'Добавить_кампанию': cmd_add_camp,
     'изменить_пост': cmd_change_post,
