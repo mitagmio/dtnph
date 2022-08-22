@@ -87,7 +87,7 @@ def payment() -> None:
                 if int(t['block_timestamp']) > timeblock:
                     timeblock = int(t['block_timestamp'])
                 pay_value = float(0.0)
-                if t['to'] == str(u.addr):
+                if t['to'] == str(u.addr) and t['token_info']['symbol']=='USDT':
                     pay_value = float(t['value']) / \
                         10**float(t['token_info']['decimals'])
 
