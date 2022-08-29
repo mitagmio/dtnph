@@ -21,5 +21,6 @@ urlpatterns = [
     path('tgadmin/', admin.site.urls),
     path('', include('tgbot.urls')),
     path('', include('analytic.urls')),
+    path('', include('cryptoqueen.urls')),
     path('__debug__/', include(debug_toolbar.urls)),
 ]
