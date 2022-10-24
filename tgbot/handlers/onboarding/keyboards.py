@@ -29,7 +29,7 @@ def make_keyboard_for_check_username() -> InlineKeyboardMarkup:
 
 def make_keyboard_for_check_in() -> InlineKeyboardMarkup:
     buttons = [[
-        InlineKeyboardButton(text='💻 Перейти в канал', url='https://t.me/+KoCswat85gBmNjQ6')
+        InlineKeyboardButton(text='💻 Перейти в канал', url='https://t.me/+NouGXCd7ux4xY2Y6')
     ],[
         InlineKeyboardButton(text='✅ Продолжить', callback_data='Меню')
     ]]
