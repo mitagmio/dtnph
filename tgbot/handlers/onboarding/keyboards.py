@@ -49,7 +49,7 @@ def make_keyboard_for_cmd_menu(adm) -> InlineKeyboardMarkup:
         btn_ref = InlineKeyboardButton(
             text='👫🕺 Реферальная система', callback_data='Рефералка')
         btn_academy = InlineKeyboardButton(
-            text='ℹ️ FAQ', callback_data='FAQ')
+            text='ℹ️ FAQ', url='https://t.me/+FWGEfWtOZQQ2MmNl')
         btn_history = InlineKeyboardButton(
             text='🗓🧾 Истории действий', callback_data='История')
         buttons.append([btn_vc])
